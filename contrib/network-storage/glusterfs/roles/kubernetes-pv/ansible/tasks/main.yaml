@@ -8,13 +8,20 @@
   register: gluster_pv
   when: inventory_hostname == groups['kube-master'][0] and groups['gfs-cluster'] is defined and hostvars[groups['gfs-cluster'][0]].gluster_disk_size_gb is defined
 
+- name: glusterfs-all
+  blockinfile:
+    path: /tmp/glusterfs-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ gluster_pv.results }}"
+  when: inventory_hostname == groups['kube-master'][0] and groups['gfs-cluster'] is defined
+
 - name: Kubernetes Apps | Set GlusterFS endpoint and PV
   kube:
-    name: glusterfs
     namespace: default
     kubectl: "{{bin_dir}}/kubectl"
-    resource: "{{item.item.type}}"
-    filename: "{{kube_config_dir}}/{{item.item.dest}}"
+    filename: "/tmp/glusterfs-all.yml"
     state: "{{item.changed | ternary('latest','present') }}"
-  with_items: "{{ gluster_pv.results }}"
   when: inventory_hostname == groups['kube-master'][0] and groups['gfs-cluster'] is defined

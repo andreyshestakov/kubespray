@@ -41,14 +41,22 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
+- name: ingress_nginx-all
+  blockinfile:
+    path: /tmp/ingress_nginx-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/ingress_nginx/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ ingress_nginx_manifests.results }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
 - name: NGINX Ingress Controller | Apply manifests
   kube:
-    name: "{{ item.item.name }}"
     namespace: "{{ ingress_nginx_namespace }}"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/ingress_nginx/{{ item.item.file }}"
+    filename: "/tmp/ingress_nginx-all.yml"
     state: "latest"
-  with_items: "{{ ingress_nginx_manifests.results }}"
   when:
     - inventory_hostname == groups['kube-master'][0]

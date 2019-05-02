@@ -6,13 +6,23 @@
   register: "rendering"
   when:
     - "inventory_hostname == groups['kube-master'][0]"
+
+- name: metallb-all
+  blockinfile:
+    path: /tmp/metallb-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ rendering.results }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
 - name: "Kubernetes Apps | Install and configure MetalLB"
   kube:
-    name: "MetalLB"
     kubectl: "{{bin_dir}}/kubectl"
-    filename: "{{ kube_config_dir }}/{{ item.item }}"
+    filename: "/tmp/metallb-all.yml"
     state: "{{ item.changed | ternary('latest','present') }}"
   become: true
-  with_items: "{{ rendering.results }}"
   when:
     - "inventory_hostname == groups['kube-master'][0]"

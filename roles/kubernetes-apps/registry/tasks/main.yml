@@ -40,15 +40,22 @@
   register: registry_manifests
   when: inventory_hostname == groups['kube-master'][0]
 
+- name: registry-all
+  blockinfile:
+    path: /tmp/registry-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/registry/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ registry_manifests.results }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
 - name: Registry | Apply manifests
   kube:
-    name: "{{ item.item.name }}"
     namespace: "{{ registry_namespace }}"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/registry/{{ item.item.file }}"
+    filename: "/tmp/registry-all.yml"
     state: "latest"
-  with_items: "{{ registry_manifests.results }}"
   when: inventory_hostname == groups['kube-master'][0]
 
 - name: Registry | Create PVC manifests
@@ -57,7 +64,20 @@
     dest: "{{ kube_config_dir }}/addons/registry/{{ item.file }}"
   with_items:
     - { name: registry-pvc, file: registry-pvc.yml, type: pvc }
-  register: registry_manifests
+  register: registry_pvc_manifests
+  when:
+    - registry_storage_class != none and registry_storage_class != ""
+    - registry_disk_size != none and registry_disk_size != ""
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: registry_pvc-all
+  blockinfile:
+    path: /tmp/registry_pvc-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/registry/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ registry_pvc_manifests.results }}"
   when:
     - registry_storage_class != none and registry_storage_class
     - registry_disk_size != none and registry_disk_size
@@ -65,13 +85,10 @@
 
 - name: Registry | Apply PVC manifests
   kube:
-    name: "{{ item.item.name }}"
     namespace: "{{ registry_namespace }}"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/registry/{{ item.item.file }}"
+    filename: "/tmp/registry_pvc-all.yml"
     state: "latest"
-  with_items: "{{ registry_manifests.results }}"
   when:
     - registry_storage_class != none and registry_storage_class
     - registry_disk_size != none and registry_disk_size

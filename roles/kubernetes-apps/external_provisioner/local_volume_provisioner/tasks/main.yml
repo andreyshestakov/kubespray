@@ -48,15 +48,20 @@
   register: local_volume_provisioner_manifests
   when: inventory_hostname == groups['kube-master'][0]
 
+- name: local_volume_provisioner-all
+  blockinfile:
+    path: /tmp/local_volume_provisioner-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/local_volume_provisioner/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ local_volume_provisioner_manifests.results }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
 - name: Local Volume Provisioner | Apply manifests
   kube:
-    name: "{{ item.item.name }}"
     namespace: "{{ local_volume_provisioner_namespace }}"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/local_volume_provisioner/{{ item.item.file }}"
+    filename: "/tmp/local_volume_provisioner-all.yml"
     state: "latest"
-  with_items: "{{ local_volume_provisioner_manifests.results }}"
   when: inventory_hostname == groups['kube-master'][0]
-  loop_control:
-    label: "{{ item.item.file }}"

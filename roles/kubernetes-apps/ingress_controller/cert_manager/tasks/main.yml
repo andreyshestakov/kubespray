@@ -45,14 +45,22 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
+- name: cert_manager-all
+  blockinfile:
+    path: /tmp/cert_manager-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/cert_manager/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ cert_manager_manifests.results }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
 - name: Cert Manager | Apply manifests
   kube:
-    name: "{{ item.item.name }}"
     namespace: "{{ cert_manager_namespace }}"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/cert_manager/{{ item.item.file }}"
+    filename: "/tmp/cert_manager-all.yml"
     state: "latest"
-  with_items: "{{ cert_manager_manifests.results }}"
   when:
     - inventory_hostname == groups['kube-master'][0]

@@ -8,13 +8,20 @@
   register: manifests
   when: inventory_hostname == groups['kube-master'][0]
 
+- name: dashboard-all
+  blockinfile:
+    path: /tmp/dashboard-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ manifests.results }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
 - name: Kubernetes Apps | Start dashboard
   kube:
-    name: "{{ item.item.name }}"
     namespace: "kube-system"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/{{ item.item.file }}"
+    filename: "/tmp/dashboard-all.yml"
     state: "latest"
-  with_items: "{{ manifests.results }}"
   when: inventory_hostname == groups['kube-master'][0]

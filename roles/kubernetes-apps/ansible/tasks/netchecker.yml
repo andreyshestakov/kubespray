@@ -51,13 +51,20 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
+- name: netchecker-all
+  blockinfile:
+    path: /tmp/netchecker-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ manifests.results }}"
+  when: inventory_hostname == groups['kube-master'][0] and not item is skipped
+
 - name: Kubernetes Apps | Start Netchecker Resources
   kube:
-    name: "{{item.item.name}}"
     namespace: "{{netcheck_namespace}}"
     kubectl: "{{bin_dir}}/kubectl"
-    resource: "{{item.item.type}}"
-    filename: "{{kube_config_dir}}/{{item.item.file}}"
+    resource: "/tmp/netchecker-all.yml"
     state: "latest"
-  with_items: "{{ manifests.results }}"
   when: inventory_hostname == groups['kube-master'][0] and not item is skipped

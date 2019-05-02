@@ -1,14 +1,19 @@
 ---
+- name: contiv-all
+  blockinfile:
+    path: /tmp/contiv-all.yml
+    block: "{{ lookup('file', contiv_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ contiv_manifests_results.results }}"
 
 - name: Contiv | Create Kubernetes resources
   kube:
-    name: "{{ item.item.name }}"
     namespace: "kube-system"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ contiv_config_dir }}/{{ item.item.file }}"
+    filename: "/tmp/contiv-all.yml"
     state: "{{ item.changed | ternary('latest','present') }}"
-  with_items: "{{ contiv_manifests_results.results }}"
   run_once: true
 
 - import_tasks: configure.yml

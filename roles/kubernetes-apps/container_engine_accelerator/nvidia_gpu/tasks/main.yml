@@ -40,15 +40,22 @@
   when:
     - inventory_hostname == groups['kube-master'][0] and nvidia_driver_install_container
 
+- name: container_engine_accelerator-all
+  blockinfile:
+    path: /tmp/container_engine_accelerator-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/addons/container_engine_accelerator/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ container_engine_accelerator_manifests.results }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0] and nvidia_driver_install_container and nvidia_driver_install_supported
+
 - name: Container Engine Acceleration Nvidia GPU | Apply manifests for nvidia accelerators
   kube:
-    name: "{{ item.item.name }}"
     namespace: "kube-system"
     kubectl: "{{ bin_dir }}/kubectl"
-    resource: "{{ item.item.type }}"
-    filename: "{{ kube_config_dir }}/addons/container_engine_accelerator/{{ item.item.file }}"
+    filename: "/tmp/container_engine_accelerator-all.yml"
     state: "latest"
-  with_items:
-    - "{{container_engine_accelerator_manifests.results}}"
   when:
     - inventory_hostname == groups['kube-master'][0] and nvidia_driver_install_container and nvidia_driver_install_supported

@@ -18,15 +18,24 @@
     - dns_mode != 'none'
     - inventory_hostname == groups['kube-master'][0]
 
+- name: helm-all
+  blockinfile:
+    path: /tmp/helm-all.yml
+    block: "{{ lookup('file', kube_config_dir + '/' + item.item.file) }}"
+    create: true
+    marker: "# {mark} {{ item.item.file }}"
+  with_items:
+    - "{{ helm_manifests.results }}"
+  when:
+    - dns_mode != 'none'
+    - inventory_hostname == groups['kube-master'][0]
+
 - name: Helm | Apply Helm Manifests (RBAC)
   kube:
-    name: "{{item.item.name}}"
     namespace: "{{ tiller_namespace }}"
     kubectl: "{{bin_dir}}/kubectl"
-    resource: "{{item.item.type}}"
-    filename: "{{kube_config_dir}}/{{item.item.file}}"
+    filename: "/tmp/helm-all.yml"
     state: "latest"
-  with_items: "{{ manifests.results }}"
   when:
     - dns_mode != 'none'
     - inventory_hostname == groups['kube-master'][0]
